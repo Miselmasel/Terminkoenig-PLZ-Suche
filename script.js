@@ -1242,15 +1242,17 @@ function submitFormular() {
     emailSubject = 'Interessent: ' + vorname + ' ' + nachname + ' – ' + email;
     senderBlock = { type: 'interessent', vorname: vorname, nachname: nachname, email: email, telefon: telefon };
   } else {
+    var kundeVorname = (document.getElementById('fmKundeVorname').value||'').trim();
+    var kundeNachname = (document.getElementById('fmKundeNachname').value||'').trim();
     var kundennummer = (document.getElementById('fmKundennummer').value||'').trim();
     var vertragsnummer = (document.getElementById('fmVertragsnummer').value||'').trim();
-    if (!kundennummer || !vertragsnummer) {
+    if (!kundeVorname || !kundeNachname || !kundennummer || !vertragsnummer) {
       statusEl.style.color = '#e74c3c';
-      statusEl.textContent = 'Bitte Kundennummer und Vertragsnummer eingeben.';
+      statusEl.textContent = 'Bitte Vor-, Nachname, Kundennummer und Vertragsnummer eingeben.';
       return;
     }
-    emailSubject = 'Kunde: ' + kundennummer + ' ' + vertragsnummer;
-    senderBlock = { type: 'kunde', kundennummer: kundennummer, vertragsnummer: vertragsnummer };
+    emailSubject = 'Kunde: ' + kundeNachname + ' ' + kundeVorname + ' – ' + kundennummer;
+    senderBlock = { type: 'kunde', vorname: kundeVorname, nachname: kundeNachname, kundennummer: kundennummer, vertragsnummer: vertragsnummer };
   }
 
   var epEl = document.getElementById('fmEigenePlz');
@@ -1268,8 +1270,8 @@ function submitFormular() {
     fileBase = (nachname||'').replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' +
                (vorname||'').replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' + today;
   } else {
-    fileBase = (kundennummer||'').replace(/[^a-zA-Z0-9]/g,'') + '_' +
-               (vertragsnummer||'').replace(/[^a-zA-Z0-9]/g,'') + '_' + today;
+    fileBase = (kundeNachname||'').replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' +
+               (kundeVorname||'').replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' + today;
   }
 
   if (Object.keys(sel).length === 0) {
