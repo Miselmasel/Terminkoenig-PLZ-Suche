@@ -1329,6 +1329,14 @@ function submitFormular() {
         if (data.ok) {
           statusEl.style.color = '#27ae60';
           statusEl.textContent = 'Erfolgreich gesendet!';
+          // Interessent/Kunde in Verwaltung anlegen (Hintergrund, kein Fehler anzeigen)
+          try {
+            fetch('https://verwaltung.terminkoenig.plz-vertriebsplaner.de/api/public_webhook.php?key=tk_public_2026wh', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ senderBlock: senderBlock, plzList: Object.keys(sel) })
+            }).catch(function() {});
+          } catch(e) {}
         } else {
           statusEl.style.color = '#e74c3c';
           statusEl.textContent = 'Fehler: ' + (data.error||'Unbekannter Fehler');
