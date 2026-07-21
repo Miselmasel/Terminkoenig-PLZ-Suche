@@ -1,4 +1,5 @@
-var map = L.map("map").setView([51.2, 10.4], 7);
+var canvasRenderer = L.canvas({ padding: 0.5 });
+var map = L.map("map", { renderer: canvasRenderer }).setView([51.2, 10.4], 7);
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors, &copy; CARTO',
@@ -19,8 +20,7 @@ var multiCircles = L.layerGroup().addTo(map);
 var eigenePlzLiveMarker = null;
 var eigenePlzScreenshotRef = null;
 
-var GEO_URL =
-  "https://gist.githubusercontent.com/fegoa89/edcd647f95ac4d21e48cacafcc722314/raw/plz-3stellig.geojson";
+var GEO_URL = "data/plz-3stellig.geojson";
 var SEL_COLOR = "#e4d4ec";
 var plzBusinesses = {}; // PLZ3 -> { est, pop, ags }
 fetch('data/plz3_businesses.json')
@@ -528,7 +528,8 @@ fetch(GEO_URL)
   .then(function (data) {
     geoL = L.geoJSON(data, {
       style: styleFeature,
-      onEachFeature: onEachFeature
+      onEachFeature: onEachFeature,
+      renderer: canvasRenderer
     }).addTo(map);
     updateSidebar();
     addLabels();
