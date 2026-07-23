@@ -242,28 +242,64 @@ function updateSidebar() {
     al.innerHTML = "";
     keys.forEach(function (p) {
       var d = document.createElement("div");
-      d.style.cssText =
-        "display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;margin:2px 0";
-      var sp = document.createElement("span");
-      sp.className = "ld";
-      sp.style.background = SEL_COLOR;
-      var tx = document.createElement("span");
-      tx.textContent = p + "xx";
-      d.appendChild(sp);
-      d.appendChild(tx);
-      d.onclick = function () {
-        zenOn(p);
-      };
+      d.style.cssText = "cursor:pointer;font-size:11px;padding:2px 3px;background:#f0eaf8;border-radius:2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      d.textContent = p + "xx";
+      d.title = p + "xx";
+      d.onclick = function () { zenOn(p); };
       al.appendChild(d);
     });
   }
-  var ta = document.getElementById("ta");
-  if (ta)
-    ta.textContent = keys
-      .map(function (p) {
-        return p + "xx";
-      })
-      .join(", ");
+
+  // PLZ-Details: alle 5-stelligen PLZ mit Ort + Luftlinie
+  var detailSection = document.getElementById('plzDetailSection');
+  var detailEl = document.getElementById('plzDetail');
+  if (detailEl) {
+    if (keys.length === 0 || !plzDB) {
+      if (detailSection) detailSection.style.display = 'none';
+      detailEl.innerHTML = '';
+    } else {
+      if (detailSection) detailSection.style.display = '';
+      var epEl = document.getElementById('fmEigenePlz');
+      var epVal = epEl ? epEl.value.replace(/\D/g,'').substring(0,5) : '';
+      var epRef = null;
+      if (epVal.length === 5) {
+        var epEntry = plzDB.find(function(e){ return e.plz === epVal; });
+        if (epEntry) epRef = epEntry;
+      }
+      var prefixSet = {};
+      keys.forEach(function(k){ prefixSet[k] = true; });
+      var rows = [];
+      plzDB.forEach(function(e) {
+        if (prefixSet[e.plz.substring(0,3)]) {
+          rows.push({
+            plz: e.plz,
+            ort: e.ort || '',
+            dist: epRef ? Math.round(haversine(epRef.lat, epRef.lon, e.lat, e.lon)) : null
+          });
+        }
+      });
+      rows.sort(function(a,b){
+        if (a.dist !== null && b.dist !== null) return a.dist - b.dist;
+        return a.plz < b.plz ? -1 : 1;
+      });
+      var showDist = epRef !== null;
+      var html = '<table style="width:100%;border-collapse:collapse;">' +
+        '<thead><tr style="position:sticky;top:0;background:#f0eaf8;">' +
+        '<th style="text-align:left;padding:2px 4px;font-size:10px;font-weight:bold;color:#642d7b;white-space:nowrap;">PLZ</th>' +
+        '<th style="text-align:left;padding:2px 4px;font-size:10px;font-weight:bold;color:#642d7b;">Ort</th>' +
+        (showDist ? '<th style="text-align:right;padding:2px 4px;font-size:10px;font-weight:bold;color:#642d7b;white-space:nowrap;">Luftlinie</th>' : '') +
+        '</tr></thead><tbody>';
+      rows.forEach(function(r) {
+        html += '<tr style="border-bottom:1px solid #f5f0fa;">' +
+          '<td style="padding:1px 4px;font-size:11px;font-family:monospace;">' + r.plz + '</td>' +
+          '<td style="padding:1px 4px;font-size:11px;">' + r.ort + '</td>' +
+          (showDist ? '<td style="padding:1px 4px;font-size:11px;text-align:right;color:#642d7b;">' + r.dist + '&thinsp;km</td>' : '') +
+          '</tr>';
+      });
+      html += '</tbody></table>';
+      detailEl.innerHTML = html;
+    }
+  }
 }
 
 function zen() {
@@ -1366,6 +1402,3 @@ function submitFormular() {
     });
   }, 500);
 }
-
-
-renderCalendar();
