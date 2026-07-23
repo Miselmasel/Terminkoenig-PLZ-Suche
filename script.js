@@ -347,24 +347,34 @@ function multiUmkreisPunkte() {
 }
 
 function multiUmkreis() {
-  var points = multiUmkreisPunkte();
-  var countEl = document.getElementById("mpCount");
-  if (countEl) {
-    countEl.textContent = points.length;
-    countEl.style.color = points.length > 5 ? "#e74c3c" : "";
-  }
-  if (points.length === 0) {
-    alert(
-      "Bitte zuerst Gebiete anklicken (Auswahl) oder Punkte per Klick setzen aktivieren."
-    );
+  var msgEl = document.getElementById('fmUmkreisMsg');
+  function setMsg(txt) { if (msgEl) { msgEl.textContent = txt; } }
+
+  var epEl = document.getElementById('fmEigenePlz');
+  var epVal = epEl ? epEl.value.replace(/\D/g,'').substring(0,5) : '';
+  if (epVal.length < 5) {
+    setMsg('Bitte Eigene PLZ eingeben.');
     return;
   }
-  if (points.length > 5) {
-    alert(
-      "Maximal 5 Ausgangspunkte moeglich (aktuell " + points.length + " Gebiete ausgewaehlt). Bitte Auswahl verringern oder gezielt Punkte per Klick setzen."
-    );
+  if (!plzDB) {
+    setMsg('PLZ-Datenbank wird noch geladen…');
     return;
   }
+  var ep = plzDB.find(function(e){ return e.plz === epVal; });
+  if (!ep) {
+    setMsg('PLZ nicht gefunden.');
+    return;
+  }
+  setMsg('');
+
+  var points = [{ plz3: null, center: L.latLng(ep.lat, ep.lon) }];
+  multiPoints.forEach(function(p) { points.push(p); });
+
+  if (points.length > 6) {
+    setMsg('Maximal 5 zusätzliche Punkte (aktuell ' + multiPoints.length + ').');
+    return;
+  }
+
   var km = parseInt(document.getElementById("mrs").value);
   multiCircles.clearLayers();
   points.forEach(function (p) {
@@ -1193,15 +1203,12 @@ function buildEmailCSVString(eigenePlzRef) {
   return '﻿' + lines.join('\r\n');
 }
 
-var fmMode = 'interessent';
-
-function switchFmTab(mode) {
-  fmMode = mode;
-  var isInt = mode === 'interessent';
-  document.getElementById('fmInteressent').style.display = isInt ? 'flex' : 'none';
-  document.getElementById('fmKundeSection').style.display = isInt ? 'none' : 'flex';
-  document.getElementById('tabInteressent').className = 'fm-tab' + (isInt ? ' fm-tab-active' : '');
-  document.getElementById('tabKunde').className = 'fm-tab' + (!isInt ? ' fm-tab-active' : '');
+function onFmTypChange() {
+  var typRadio = document.querySelector('input[name="fmTyp"]:checked');
+  var isInt = !typRadio || typRadio.value === 'interessent';
+  document.getElementById('fmEmailRow').style.display = isInt ? '' : 'none';
+  var kf = document.getElementById('fmKundeFields');
+  kf.style.display = isInt ? 'none' : 'flex';
   document.getElementById('fmStatus').textContent = '';
 }
 
@@ -1230,30 +1237,33 @@ function submitFormular() {
   var btn = document.getElementById('fmSendBtn');
   var emailSubject, senderBlock;
 
-  if (fmMode === 'interessent') {
-    var vorname = (document.getElementById('fmVorname').value||'').trim();
-    var nachname = (document.getElementById('fmNachname').value||'').trim();
+  var typRadio = document.querySelector('input[name="fmTyp"]:checked');
+  var isInt = !typRadio || typRadio.value === 'interessent';
+
+  var vorname = (document.getElementById('fmVorname').value||'').trim();
+  var nachname = (document.getElementById('fmNachname').value||'').trim();
+  if (!vorname || !nachname) {
+    statusEl.style.color = '#e74c3c';
+    statusEl.textContent = 'Bitte Vor- und Nachname eingeben.';
+    return;
+  }
+
+  if (isInt) {
     var email = (document.getElementById('fmEmail').value||'').trim();
-    if (!vorname || !nachname || !email) {
+    if (!email) {
       statusEl.style.color = '#e74c3c';
-      statusEl.textContent = 'Bitte Vor-, Nachname und E-Mail-Adresse eingeben.';
+      statusEl.textContent = 'Bitte E-Mail-Adresse eingeben.';
       return;
     }
-    var telefon = (document.getElementById('fmTelefon').value||'').trim();
     emailSubject = 'Interessent: ' + vorname + ' ' + nachname + ' – ' + email;
-    senderBlock = { type: 'interessent', vorname: vorname, nachname: nachname, email: email, telefon: telefon };
+    senderBlock = { type: 'interessent', vorname: vorname, nachname: nachname, email: email };
   } else {
-    var kundeVorname = (document.getElementById('fmKundeVorname').value||'').trim();
-    var kundeNachname = (document.getElementById('fmKundeNachname').value||'').trim();
     var kundennummer = (document.getElementById('fmKundennummer').value||'').trim();
     var vertragsnummer = (document.getElementById('fmVertragsnummer').value||'').trim();
-    if (!kundeVorname || !kundeNachname || !kundennummer || !vertragsnummer) {
-      statusEl.style.color = '#e74c3c';
-      statusEl.textContent = 'Bitte Vor-, Nachname, Kundennummer und Vertragsnummer eingeben.';
-      return;
-    }
-    emailSubject = 'Kunde: ' + kundeNachname + ' ' + kundeVorname + ' – ' + kundennummer;
-    senderBlock = { type: 'kunde', vorname: kundeVorname, nachname: kundeNachname, kundennummer: kundennummer, vertragsnummer: vertragsnummer };
+    emailSubject = 'Kunde: ' + nachname + ' ' + vorname + (kundennummer ? ' – ' + kundennummer : '');
+    senderBlock = { type: 'kunde', vorname: vorname, nachname: nachname };
+    if (kundennummer) senderBlock.kundennummer = kundennummer;
+    if (vertragsnummer) senderBlock.vertragsnummer = vertragsnummer;
   }
 
   var epEl = document.getElementById('fmEigenePlz');
@@ -1266,14 +1276,8 @@ function submitFormular() {
   if (eigenePlzRef) senderBlock.eigenePlz = eigenePlzRef.plz;
 
   var today = new Date().toISOString().split('T')[0];
-  var fileBase;
-  if (fmMode === 'interessent') {
-    fileBase = (nachname||'').replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' +
-               (vorname||'').replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' + today;
-  } else {
-    fileBase = (kundeNachname||'').replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' +
-               (kundeVorname||'').replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' + today;
-  }
+  var fileBase = nachname.replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' +
+                 vorname.replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' + today;
 
   if (Object.keys(sel).length === 0) {
     statusEl.style.color = '#e74c3c';

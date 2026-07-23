@@ -17,11 +17,9 @@
   </h2>
 
   <div class="s">
-    <div class="tr">
-      <h3 style="margin:0">AUSWAHL</h3>
-    </div>
-    <div style="font-size:11px;color:#666;margin-top:4px;">
-      Klick auf Gebiet = markieren / abwählen
+    <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;">
+      <h3 style="margin:0;white-space:nowrap;">AUSWAHL</h3>
+      <span style="font-size:11px;color:#666;">Klick auf Gebiet = markieren / abwählen</span>
     </div>
   </div>
 
@@ -50,8 +48,11 @@
   </div>
 
   <div class="s">
+    <h3 style="margin:0 0 6px;">UMKREISSUCHE</h3>
+    <input type="text" id="fmEigenePlz" placeholder="Eigene PLZ (Pflichtfeld) *" maxlength="5"
+      style="margin-bottom:4px;"
+      oninput="this.value=this.value.replace(/\D/g,'').substring(0,5);updateEigenePlzMarker();">
     <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
-      <h3 style="margin:0;flex-shrink:0;">UMKREISSUCHE</h3>
       <select id="mrs" style="flex:1;min-width:0;margin:0;padding:3px 2px;font-size:11px;">
         <option>10 km</option>
         <option>20 km</option>
@@ -64,10 +65,12 @@
       <button class="bg" onclick="multiUmkreis()" style="width:auto;margin:0;padding:4px 6px;white-space:nowrap;font-size:11px;">Suche</button>
       <button class="br" onclick="multiUmkreisLoeschen()" style="width:auto;margin:0;padding:4px 6px;white-space:nowrap;font-size:11px;">Reset</button>
     </div>
-    <div style="font-size:11px;color:#666;margin-bottom:4px;">per Klick gesetzte PLZ</div>
+    <div id="fmUmkreisMsg" style="font-size:10px;min-height:12px;color:#e74c3c;margin-bottom:3px;"></div>
+    <div style="font-size:11px;color:#666;margin-bottom:4px;">Maximal 5 zusätzliche Punkte per Klick</div>
     <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
       <button class="bk" id="mpToggleBtn" onclick="toggleMultiMode()" style="flex:1;margin:0;white-space:nowrap;">Klick setzen</button>
-      <span style="font-size:11px;white-space:nowrap;">Punkte (<span id="mpCount">0</span>/5)</span>
+      <button class="br" onclick="auswahlLoeschen()" style="flex:1;margin:0;white-space:nowrap;font-size:11px;">Auswahl löschen</button>
+      <span style="font-size:11px;white-space:nowrap;flex-shrink:0;"><span id="mpCount">0</span>/5</span>
     </div>
     <div id="mpList" style="font-size:11px;max-height:55px;overflow-y:auto;margin:2px 0;"></div>
   </div>
@@ -79,36 +82,31 @@
   </div>
 
   <div class="s">
-    <h3>TEXTAUSGABE</h3>
-    <div id="ta" class="ta"></div>
-    <button class="bb" onclick="exportCSV()">Export CSV</button>
-    <button class="br" onclick="auswahlLoeschen()">Auswahl loeschen</button>
-  </div>
-
-  <div class="s">
-    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:10px;">
       <span style="font-size:11px;font-weight:bold;color:#333;">Auswahl per E-Mail an:</span>
       <img src="terminkoenig_logo.png" alt="Terminkönig" style="height:14px;vertical-align:middle;">
       <span style="font-size:11px;font-weight:bold;color:#333;">senden</span>
     </div>
-    <div style="display:flex;gap:4px;margin-bottom:8px;">
-      <button id="tabInteressent" class="fm-tab fm-tab-active" onclick="switchFmTab('interessent')">Interessent</button>
-      <button id="tabKunde" class="fm-tab" onclick="switchFmTab('kunde')">Kunde</button>
+    <div style="display:flex;gap:16px;margin-bottom:8px;">
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
+        <input type="radio" name="fmTyp" value="interessent" checked onchange="onFmTypChange()" style="width:auto;margin:0;"> Interessent
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
+        <input type="radio" name="fmTyp" value="kunde" onchange="onFmTypChange()" style="width:auto;margin:0;"> Kunde
+      </label>
     </div>
-    <div id="fmInteressent" style="display:flex;flex-direction:column;gap:4px;">
-      <input type="text" id="fmVorname" placeholder="Vorname *" maxlength="50" style="margin:0;">
-      <input type="text" id="fmNachname" placeholder="Nachname *" maxlength="50" style="margin:0;">
-      <input type="email" id="fmEmail" placeholder="E-Mail-Adresse *" maxlength="100" style="margin:0;">
-      <input type="tel" id="fmTelefon" placeholder="Telefon (optional)" maxlength="30" style="margin:0;">
+    <div style="display:flex;gap:4px;margin-bottom:4px;">
+      <input type="text" id="fmVorname" placeholder="Vorname *" maxlength="50" style="flex:1;min-width:0;margin:0;">
+      <input type="text" id="fmNachname" placeholder="Nachname *" maxlength="50" style="flex:1;min-width:0;margin:0;">
     </div>
-    <div id="fmKundeSection" style="display:none;flex-direction:column;gap:4px;">
-      <input type="text" id="fmKundeVorname" placeholder="Vorname *" maxlength="50" style="margin:0;">
-      <input type="text" id="fmKundeNachname" placeholder="Nachname *" maxlength="50" style="margin:0;">
-      <input type="text" id="fmKundennummer" placeholder="Kundennummer *" maxlength="30" style="margin:0;">
-      <input type="text" id="fmVertragsnummer" placeholder="Vertragsnummer *" maxlength="30" style="margin:0;">
+    <div id="fmEmailRow" style="margin-bottom:4px;">
+      <input type="email" id="fmEmail" placeholder="E-Mail-Adresse *" maxlength="100" style="width:100%;box-sizing:border-box;margin:0;">
     </div>
-    <input type="text" id="fmEigenePlz" placeholder="Eigene PLZ – Entfernung berechnen (optional)" maxlength="5" style="margin-top:4px;margin-bottom:0;" oninput="this.value=this.value.replace(/\D/g,'').substring(0,5);updateEigenePlzMarker();">
-    <button class="bb" onclick="submitFormular()" style="margin-top:6px;" id="fmSendBtn">Auswahl senden</button>
+    <div id="fmKundeFields" style="display:none;flex-direction:column;gap:4px;margin-bottom:4px;">
+      <input type="text" id="fmKundennummer" placeholder="Kundennummer (optional)" maxlength="30" style="margin:0;">
+      <input type="text" id="fmVertragsnummer" placeholder="Vertragsnummer (optional)" maxlength="30" style="margin:0;">
+    </div>
+    <button class="bb" onclick="submitFormular()" style="margin-top:2px;" id="fmSendBtn">Auswahl senden</button>
     <div id="fmStatus" style="font-size:11px;margin-top:4px;min-height:16px;"></div>
   </div>
 
@@ -135,6 +133,6 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
-<script src="script.js?v=3"></script>
+<script src="script.js?v=4"></script>
 </body>
 </html>
