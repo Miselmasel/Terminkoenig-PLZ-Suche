@@ -23,6 +23,19 @@ var eigenePlzScreenshotRef = null;
 var GEO_URL = "data/plz-3stellig.geojson";
 var SEL_COLOR = "#e4d4ec";
 var plzBusinesses = {}; // PLZ3 -> { est, pop, ags }
+// Kalibrierte Branchen-Korrekturfaktoren (actual/est) für bekannte PLZ3-Gebiete
+var TK_KORREKTUREN = {
+  '193':0.504,'267':0.306,'308':0.250,  // Ost/ländlich
+  '664':0.583,'701':0.361,'288':0.195,  // West normal/klein
+  '809':0.182,'382':0.135,'905':0.129,  // West Großstadt/Industrie
+  '200':0.122,'659':0.076               // West Finanzzentrum/Großstadt
+};
+function tkEst(plz3) {
+  var b = plzBusinesses[plz3];
+  if (!b || !b.est) return 0;
+  var f = TK_KORREKTUREN[plz3] || (b.rate === 36 ? 0.35 : 0.22);
+  return Math.round(b.est * f);
+}
 fetch('data/plz3_businesses.json')
   .then(function(r) { return r.json(); })
   .then(function(d) { plzBusinesses = d; })
@@ -117,7 +130,7 @@ function onEachFeature(feature, layer) {
     var p = l.feature.properties.plz;
     var b = plzBusinesses[p];
     var txt = p + "xx";
-    if (b && b.est) txt += "<br><small>ca. " + b.est.toLocaleString("de-DE") + " Betriebe</small>";
+    if (b && b.est) txt += "<br><small>ca. " + tkEst(p).toLocaleString("de-DE") + " Betriebe</small>";
     return txt;
   }, { sticky: true, direction: "top", opacity: 0.88 });
   layer.on("click", function () {
@@ -234,7 +247,7 @@ function updateSidebar() {
   var acEl = document.getElementById("ac");
   if (acEl) acEl.querySelector("span:nth-child(2)").textContent = keys.length;
   var totalBetriebe = 0;
-  keys.forEach(function(p) { if (plzBusinesses[p]) totalBetriebe += plzBusinesses[p].est; });
+  keys.forEach(function(p) { totalBetriebe += tkEst(p); });
   var betrEl = document.getElementById("totalBetriebe");
   if (betrEl) betrEl.textContent = totalBetriebe > 0 ? "ca. " + totalBetriebe.toLocaleString("de-DE") + " Betriebe" : "";
   var al = document.getElementById("al");
@@ -473,7 +486,7 @@ function exportCSV() {
   keys.forEach(function(prefix) {
     var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
     var pkLabel = pkName[pk] || 'Unbekannt';
-    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? plzBusinesses[prefix].est : '';
+    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? tkEst(prefix) : '';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
@@ -1015,7 +1028,7 @@ function buildEmailCSVTable(eigenePlzRef) {
   keys.forEach(function(prefix) {
     var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
     var pkCell = pk ? '<span style="background:' + pkColors[pk] + ';color:#fff;padding:1px 5px;border-radius:3px;font-size:10px;white-space:nowrap;">' + pkFull[pk] + '</span>' : '';
-    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? plzBusinesses[prefix].est.toLocaleString('de-DE') : '–';
+    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? tkEst(prefix).toLocaleString('de-DE') : '–';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
@@ -1275,7 +1288,7 @@ function buildEmailCSVString(eigenePlzRef) {
   keys.forEach(function(prefix) {
     var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
     var pkLabel = pkName[pk] || 'Unbekannt';
-    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? plzBusinesses[prefix].est : '';
+    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? tkEst(prefix) : '';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
@@ -1405,7 +1418,7 @@ function submitFormular() {
       btn.textContent = 'Wird gesendet…';
       var imgData = canvas.toDataURL('image/jpeg', 0.75);
       var betriebeTotal = 0;
-      Object.keys(sel).forEach(function(p) { if (plzBusinesses[p]) betriebeTotal += plzBusinesses[p].est; });
+      Object.keys(sel).forEach(function(p) { betriebeTotal += tkEst(p); });
       var payload = {
         emailSubject: emailSubject,
         senderBlock: senderBlock,
