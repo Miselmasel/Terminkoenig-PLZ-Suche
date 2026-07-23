@@ -1257,6 +1257,14 @@ function captureMapToCanvas() {
     });
 
     Promise.all(loadPromises).then(function() {
+      // Leaflet canvas renderer draws polygons/paths to a <canvas> in the overlay pane
+      container.querySelectorAll('.leaflet-overlay-pane canvas').forEach(function(leafCanvas) {
+        var r = leafCanvas.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          try { ctx.drawImage(leafCanvas, Math.round(r.left - mapRect.left), Math.round(r.top - mapRect.top), Math.round(r.width), Math.round(r.height)); } catch(e) {}
+        }
+      });
+
       var svgEl = container.querySelector('.leaflet-overlay-pane svg');
       if (!svgEl) {
         drawOverlayLabels(ctx, canvas);

@@ -68,16 +68,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach (glob($linksDir . '*.json') as $file) {
             $data = json_decode(file_get_contents($file), true);
             if (!is_array($data)) continue;
-            if (isset($data['_created']) && (time() - $data['_created']) > 90 * 86400) {
-                unlink($file);
-                continue;
-            }
             if ((string)($data['_contact_id'] ?? '') !== $cid) continue;
+            $expired = isset($data['_created']) && (time() - $data['_created']) > 90 * 86400;
             $result[] = [
                 'token'    => basename($file, '.json'),
                 'created'  => $data['_created'] ?? null,
                 'gebiete'  => $data['gebiete'] ?? [],
-                'versions' => $data['_versions'] ?? []
+                'versions' => $data['_versions'] ?? [],
+                'expired'  => $expired
             ];
         }
         usort($result, function($a, $b) { return ($b['created'] ?? 0) - ($a['created'] ?? 0); });
@@ -102,7 +100,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $data = json_decode(file_get_contents($file), true);
     if (isset($data['_created']) && (time() - $data['_created']) > 90 * 86400) {
-        unlink($file);
         http_response_code(404);
         echo json_encode(['ok' => false, 'error' => 'Link abgelaufen (90 Tage)']);
         exit;
