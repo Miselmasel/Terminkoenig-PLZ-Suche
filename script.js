@@ -636,16 +636,24 @@ function applyUrlPresetGebiete(gebiete) {
   var params = new URLSearchParams(window.location.search);
   var token = params.get('c');
   if (!token || !/^[a-f0-9]{4,8}$/i.test(token)) return;
+  window._urlToken = token;
   fetch('link.php?get=' + encodeURIComponent(token))
     .then(function(r) { return r.json(); })
     .then(function(resp) {
       if (!resp.ok || !resp.data) return;
       applyUrlPreset(resp.data);
-      if (Array.isArray(resp.data.gebiete) && resp.data.gebiete.length) {
+      // Neueste Kundeneingabe hat Vorrang vor Original-Gebieten
+      var gebiete = resp.data.gebiete || [];
+      var versions = resp.data._versions;
+      if (versions && versions.length) {
+        var latest = versions[versions.length - 1];
+        if (latest.gebiete && latest.gebiete.length) gebiete = latest.gebiete;
+      }
+      if (gebiete.length) {
         if (geoL) {
-          applyUrlPresetGebiete(resp.data.gebiete);
+          applyUrlPresetGebiete(gebiete);
         } else {
-          window._urlPresetGebiete = resp.data.gebiete;
+          window._urlPresetGebiete = gebiete;
         }
       }
     })
@@ -1443,6 +1451,14 @@ function submitFormular() {
         if (data.ok) {
           statusEl.style.color = '#27ae60';
           statusEl.textContent = 'Erfolgreich gesendet!';
+          // Auswahl als neue Version am Link speichern
+          if (window._urlToken) {
+            fetch('link.php', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ action: 'add_version', token: window._urlToken, gebiete: Object.keys(sel).sort() })
+            }).catch(function() {});
+          }
           // Interessent/Kunde in Verwaltung anlegen (Hintergrund, kein Fehler anzeigen)
           try {
             fetch('https://verwaltung.terminkoenig.plz-vertriebsplaner.de/api/public_webhook.php?key=tk_public_2026wh', {
