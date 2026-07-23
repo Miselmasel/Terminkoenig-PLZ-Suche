@@ -1294,10 +1294,12 @@ function submitFormular() {
     emailSubject = 'Interessent: ' + vorname + ' ' + nachname + ' – ' + email;
     senderBlock = { type: 'interessent', vorname: vorname, nachname: nachname, email: email };
   } else {
+    var kundeEmail = (document.getElementById('fmKundeEmail').value||'').trim();
     var kundennummer = (document.getElementById('fmKundennummer').value||'').trim();
     var vertragsnummer = (document.getElementById('fmVertragsnummer').value||'').trim();
     emailSubject = 'Kunde: ' + nachname + ' ' + vorname + (kundennummer ? ' – ' + kundennummer : '');
     senderBlock = { type: 'kunde', vorname: vorname, nachname: nachname };
+    if (kundeEmail) senderBlock.email = kundeEmail;
     if (kundennummer) senderBlock.kundennummer = kundennummer;
     if (vertragsnummer) senderBlock.vertragsnummer = vertragsnummer;
   }
@@ -1358,7 +1360,8 @@ function submitFormular() {
         holidaySection: buildEmailHolidaySection(),
         plzCount: Object.keys(sel).length,
         betriebeTotal: betriebeTotal,
-        fileBase: fileBase
+        fileBase: fileBase,
+        plz3List: Object.keys(sel).sort()
       };
       fetch(SEND_EMAIL_API, {
         method: 'POST',

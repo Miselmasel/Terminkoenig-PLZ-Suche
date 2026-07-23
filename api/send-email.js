@@ -8,7 +8,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
-  const { emailSubject, senderBlock, mapImage, csvString, csvTable, holidaySection, plzCount, betriebeTotal, fileBase } = req.body || {};
+  const { emailSubject, senderBlock, mapImage, csvString, csvTable, holidaySection, plzCount, betriebeTotal, fileBase, plz3List } = req.body || {};
   const baseName = (fileBase || ('auswahl_' + new Date().toISOString().split('T')[0])).replace(/[^a-zA-Z0-9äöüÄÖÜß_\-]/g, '_');
 
   if (!emailSubject || !senderBlock) {
@@ -112,9 +112,84 @@ ${holidaySection || '<p>Keine Feiertags-Daten.</p>'}
 
   try {
     await transporter.sendMail(mailOptions);
-    return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('SMTP error:', err.message);
     return res.status(500).json({ ok: false, error: 'E-Mail konnte nicht gesendet werden.' });
   }
+
+  // Bestätigungsmail an Nutzer (wenn E-Mail vorhanden)
+  const userEmail = senderBlock.email || null;
+  if (userEmail) {
+    const isInt = senderBlock.type === 'interessent';
+    const anrede = isInt ? 'Interessent' : 'Kunde';
+    const plz3Text = Array.isArray(plz3List) ? plz3List.map(p => p + 'xx').join(', ') : '–';
+
+    const confirmHtml = `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #333; margin: 0; padding: 20px; max-width: 700px; }
+  h2 { color: #642d7b; font-size: 14px; margin: 22px 0 6px; border-bottom: 1px solid #e4d4ec; padding-bottom: 4px; }
+  img.map { max-width: 100%; border: 1px solid #ccc; border-radius: 4px; margin: 8px 0; }
+  .overflow-x { overflow-x: auto; }
+  table.plz td, table.plz th { font-size: 11px; padding: 2px 6px; border-bottom: 1px solid #f0eaf8; }
+  table.plz th { color: #642d7b; font-weight: bold; text-align: left; }
+  .footer { margin-top: 32px; padding-top: 16px; border-top: 2px solid #642d7b; font-size: 12px; color: #555; line-height: 1.7; }
+  .footer a { color: #642d7b; text-decoration: none; }
+</style>
+</head>
+<body>
+<p>Lieber ${anrede} ${(senderBlock.vorname || '')} ${(senderBlock.nachname || '')},</p>
+<p>anbei eine kurze Zusammenfassung der Daten, die Sie an Terminkönig gesendet haben:</p>
+
+${base64Data ? '<h2>Kartenausschnitt</h2><img class="map" src="cid:confirm_map@terminkoenig" alt="Kartenausschnitt">' : ''}
+
+<h2>Ihre PLZ</h2>
+<p style="font-family:monospace;">${senderBlock.eigenePlz || '–'}</p>
+
+<h2>Ihre 3-stelligen Postleitzahlen</h2>
+<p style="font-family:monospace;font-size:12px;line-height:1.8;">${plz3Text}</p>
+
+<h2>Ihr komplettes Einzugsgebiet</h2>
+<div class="overflow-x">
+${csvTable || '<p>Keine Daten.</p>'}
+</div>
+
+<div class="footer">
+  <p>Mit freundlichen Grüßen aus Leer (Ostfriesland)</p>
+  <p>Ihr <img src="https://terminkoenig.plz-vertriebsplaner.de/terminkoenig_logo.png" alt="Terminkönig" style="height:18px;vertical-align:middle;"> Terminkönig-Team</p>
+  <p>Bei Fragen rufen Sie uns an oder senden uns eine E-Mail:</p>
+  <p>
+    Kleiner Oldekamp 29<br>26789 Leer<br><br>
+    Telefon: 0491&thinsp;/&thinsp;454346<br>
+    Telefax: 0491&thinsp;/&thinsp;9122480<br><br>
+    E-Mail: <a href="mailto:jp@terminkoenig.de">jp@terminkoenig.de</a><br>
+    Internet: <a href="https://terminkoenig.de">https://terminkoenig.de</a>
+  </p>
+</div>
+</body>
+</html>`;
+
+    const confirmOptions = {
+      from: `"Terminkönig" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: userEmail,
+      subject: 'Ihre PLZ-Auswahl bei Terminkönig – Zusammenfassung',
+      html: confirmHtml,
+      attachments: base64Data ? [{
+        filename: baseName + '_karte.jpg',
+        content: Buffer.from(base64Data, 'base64'),
+        cid: 'confirm_map@terminkoenig'
+      }] : []
+    };
+
+    try {
+      await transporter.sendMail(confirmOptions);
+    } catch (err) {
+      console.error('Bestätigungsmail Fehler:', err.message);
+      // Hauptmail wurde gesendet — Fehler hier nicht an Client weitergeben
+    }
+  }
+
+  return res.status(200).json({ ok: true });
 };
